@@ -1,4 +1,20 @@
 {
+  "name": "full-stack-next-typescript-graphql-shop",
   "private": true,
-  "workspaces": ["frontend", "backend"]
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "prisma:generate": "pnpm --filter backend prisma generate",
+    "prisma:migrate": "pnpm --filter backend prisma migrate dev",
+    "prisma:studio": "pnpm --filter backend prisma studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
 }

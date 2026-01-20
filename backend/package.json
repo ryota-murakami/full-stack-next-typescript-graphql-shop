@@ -1,38 +1,39 @@
 {
   "name": "full-stack-shop-backend",
-  "version": "1.0.0",
-  "description": "the backend of full-stack-shop",
-  "main": "src/index.js",
+  "version": "2.0.0",
+  "description": "GraphQL API server for Full-Stack Shop",
+  "type": "module",
   "scripts": {
-    "start": "NODE_ENV=production node src/index.js",
-    "dev": "NODE_ENV=development nodemon -e js,graphql -x node src/index.js",
-    "test": "jest",
-    "prisma:deploy:dev": "prisma deploy --env-file variables.dev.env",
-    "prettier": "prettier --write src/**/*"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push"
   },
   "dependencies": {
-    "babel-preset-env": "^1.7.0",
-    "bcryptjs": "2.4.3",
-    "cookie-parser": "^1.4.3",
-    "dotenv": "6.0.0",
-    "graphql": "^0.13.2",
-    "graphql-cli": "^2.16.7",
-    "graphql-yoga": "1.16.2",
-    "jsonwebtoken": "8.3.0",
-    "nodemailer": "^4.6.8",
-    "nodemon": "^1.18.7",
-    "npm-run-all": "^4.1.5",
-    "prisma": "1.17.1",
-    "prisma-binding": "2.1.6",
-    "stripe": "^6.12.1"
-  },
-  "license": "MIT",
-  "babel": {
-    "presets": [
-      "env"
-    ]
+    "@prisma/client": "^6.2.1",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "graphql": "^16.10.0",
+    "graphql-yoga": "^5.10.10",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.16",
+    "stripe": "^17.5.0"
   },
   "devDependencies": {
-    "prettier": "^1.19.1"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.5",
+    "@types/nodemailer": "^6.4.17",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

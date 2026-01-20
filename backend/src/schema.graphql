@@ -1,38 +1,15 @@
-# import * from './generated/prisma.graphql'
+"""
+GraphQL Schema for Full-Stack Shop
+Updated for graphql-yoga 5.x
+"""
 
-type SuccessMessage {
-  message: String
-}
-
-type Mutation {
-  createItem(
-    title: String!
-    description: String!
-    image: String
-    largeImage: String
-    price: Int
-  ): Item!
-  updateItem(id: ID!, title: String, description: String, price: Int): Item!
-  deleteItem(id: ID!): Item
-  signup(email: String!, password: String!, name: String!): User!
-  signin(email: String!, password: String!): User!
-  signout: SuccessMessage
-  requestReset(email: String!): SuccessMessage
-  resetPassword(resetToken: String! password: String! confirmPassword: String!): User!
-  updatePermissions(permissions: [Permission], userId: ID!) : User
-  addToCart(id: ID!): CartItem
-  removeFromCart(id: ID!): CartItem
-  createOrder(token: String!): Order!
-}
-
-type Query {
-  items(where: ItemWhereInput, orderBy: ItemOrderByInput, skip: Int, first: Int): [Item]!
-  item(where: ItemWhereUniqueInput!): Item
-  itemsConnection(where: ItemWhereInput): ItemConnection!
-  me: User
-  users: [User]!
-  order(id: ID!): Order!
-  orders(where: OrderWhereInput, orderBy: OrderOrderByInput): [Order]!
+enum Permission {
+  ADMIN
+  USER
+  ITEMCREATE
+  ITEMUPDATE
+  ITEMDELETE
+  PERMISSIONUPDATE
 }
 
 type User {
@@ -41,4 +18,115 @@ type User {
   email: String!
   permissions: [Permission!]!
   cart: [CartItem!]!
+}
+
+type Item {
+  id: ID!
+  title: String!
+  description: String!
+  image: String
+  largeImage: String
+  price: Int!
+  user: User!
+}
+
+type CartItem {
+  id: ID!
+  quantity: Int!
+  item: Item
+  user: User!
+}
+
+type OrderItem {
+  id: ID!
+  title: String!
+  description: String!
+  image: String!
+  largeImage: String!
+  price: Int!
+  quantity: Int!
+}
+
+type Order {
+  id: ID!
+  items: [OrderItem!]!
+  total: Int!
+  user: User!
+  charge: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type SuccessMessage {
+  message: String
+}
+
+type ItemConnection {
+  aggregate: AggregateItem!
+}
+
+type AggregateItem {
+  count: Int!
+}
+
+input ItemWhereInput {
+  title_contains: String
+  description_contains: String
+  OR: [ItemWhereInput!]
+}
+
+enum ItemOrderByInput {
+  id_ASC
+  id_DESC
+  title_ASC
+  title_DESC
+  price_ASC
+  price_DESC
+  createdAt_ASC
+  createdAt_DESC
+}
+
+type Query {
+  items(
+    where: ItemWhereInput
+    orderBy: ItemOrderByInput
+    skip: Int
+    first: Int
+  ): [Item!]!
+  item(id: ID!): Item
+  itemsConnection(where: ItemWhereInput): ItemConnection!
+  me: User
+  users: [User!]!
+  order(id: ID!): Order!
+  orders: [Order!]!
+}
+
+type Mutation {
+  createItem(
+    title: String!
+    description: String!
+    image: String
+    largeImage: String
+    price: Int!
+  ): Item!
+  updateItem(
+    id: ID!
+    title: String
+    description: String
+    price: Int
+  ): Item!
+  deleteItem(id: ID!): Item
+  signup(email: String!, password: String!, name: String!): User!
+  signin(email: String!, password: String!): User!
+  signout: SuccessMessage
+  requestReset(email: String!): SuccessMessage
+  resetPassword(
+    resetToken: String!
+    password: String!
+    confirmPassword: String!
+  ): User!
+  updatePermissions(permissions: [Permission!]!, userId: ID!): User
+  addToCart(id: ID!): CartItem
+  removeFromCart(id: ID!): CartItem
+  createOrder(token: String!): Order!
 }
