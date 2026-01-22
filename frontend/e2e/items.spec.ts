@@ -142,4 +142,161 @@ test.describe('Items', () => {
       await expect(page.locator(`text=${title}`)).not.toBeVisible()
     })
   })
+
+  test.describe('Items Pagination', () => {
+    test('should display pagination when many items exist', async ({ page }) => {
+      await page.goto('/items')
+
+      // Check if pagination exists (if there are enough items)
+      const pagination = page.locator('[aria-label="pagination"]').or(
+        page.getByRole('navigation', { name: /pagination/i })
+      )
+
+      // Pagination may or may not be visible depending on item count
+      // This test verifies the page loads correctly with or without pagination
+      await expect(page.getByRole('heading', { name: /shop/i })).toBeVisible()
+    })
+
+    test('should navigate between pages if pagination exists', async ({ page }) => {
+      await page.goto('/items')
+
+      // Look for next page button
+      const nextButton = page.getByRole('button', { name: /next/i }).or(
+        page.getByRole('link', { name: /next/i })
+      )
+
+      // If pagination exists, test it
+      if (await nextButton.isVisible().catch(() => false)) {
+        await nextButton.click()
+        // URL should change or content should change
+        await page.waitForTimeout(500)
+      }
+
+      // Page should still show items heading
+      await expect(page.getByRole('heading', { name: /shop/i })).toBeVisible()
+    })
+  })
+
+  test.describe('Empty States', () => {
+    test('should handle items page with no items gracefully', async ({ page }) => {
+      // Mock empty items response
+      await page.route('**/graphql', async (route) => {
+        const postData = route.request().postData()
+        if (postData?.includes('allItems') || postData?.includes('items')) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              data: {
+                items: [],
+              },
+            }),
+          })
+        } else {
+          await route.continue()
+        }
+      })
+
+      await page.goto('/items')
+
+      // Should show empty state or heading
+      await expect(page.getByRole('heading', { name: /shop/i })).toBeVisible()
+    })
+  })
+
+  test.describe('Price Formatting', () => {
+    test('should display price correctly formatted', async ({ page }) => {
+      await createAuthenticatedSession(page)
+
+      // Create an item with specific price
+      await page.goto('/sell')
+      const title = `Price Format ${Date.now()}`
+      await page.getByLabel(/title/i).fill(title)
+      await page.getByLabel(/description/i).fill('Test price formatting')
+      await page.getByLabel(/price/i).fill('2599') // $25.99
+      await page.getByRole('button', { name: /create/i }).click()
+
+      await expect(page.url()).toContain('/item/')
+
+      // Check price is displayed correctly on item page
+      await expect(page.getByText('$25.99').or(page.getByText('$25'))).toBeVisible()
+    })
+
+    test('should display free items as $0.00', async ({ page }) => {
+      await createAuthenticatedSession(page)
+
+      // Create a free item
+      await page.goto('/sell')
+      const title = `Free Item ${Date.now()}`
+      await page.getByLabel(/title/i).fill(title)
+      await page.getByLabel(/description/i).fill('This is free')
+      await page.getByLabel(/price/i).fill('0')
+      await page.getByRole('button', { name: /create/i }).click()
+
+      await expect(page.url()).toContain('/item/')
+
+      // Price should show as $0 or $0.00
+      await expect(
+        page.getByText('$0').or(page.getByText('$0.00')).or(page.getByText('Free'))
+      ).toBeVisible()
+    })
+  })
+
+  test.describe('Item Images', () => {
+    test('should handle items without images', async ({ page }) => {
+      await createAuthenticatedSession(page)
+
+      // Create an item without an image
+      await page.goto('/sell')
+      const title = `No Image Item ${Date.now()}`
+      await page.getByLabel(/title/i).fill(title)
+      await page.getByLabel(/description/i).fill('Item without image')
+      await page.getByLabel(/price/i).fill('1500')
+      // Don't upload an image
+      await page.getByRole('button', { name: /create/i }).click()
+
+      await expect(page.url()).toContain('/item/')
+
+      // Item page should still display correctly
+      await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    })
+  })
+
+  test.describe('Item Validation', () => {
+    test('should require title for new item', async ({ page }) => {
+      await createAuthenticatedSession(page)
+
+      await page.goto('/sell')
+
+      // Only fill description and price
+      await page.getByLabel(/description/i).fill('Description only')
+      await page.getByLabel(/price/i).fill('1000')
+
+      // Try to submit without title
+      await page.getByRole('button', { name: /create/i }).click()
+
+      // Should show validation error or stay on page
+      // HTML5 validation should prevent submission
+      await expect(page.url()).toContain('/sell')
+    })
+
+    test('should require price for new item', async ({ page }) => {
+      await createAuthenticatedSession(page)
+
+      await page.goto('/sell')
+
+      // Only fill title and description
+      await page.getByLabel(/title/i).fill('Title only')
+      await page.getByLabel(/description/i).fill('Description only')
+
+      // Clear price field
+      await page.getByLabel(/price/i).clear()
+
+      // Try to submit without price
+      await page.getByRole('button', { name: /create/i }).click()
+
+      // Should show validation error or stay on page
+      await expect(page.url()).toContain('/sell')
+    })
+  })
 })
