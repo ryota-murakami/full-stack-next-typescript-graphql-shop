@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@apollo/client": "^3.12.5",
@@ -27,6 +29,7 @@
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.469.0",
     "next": "^15.1.4",
+    "next-themes": "^0.4.6",
     "nprogress": "^0.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -37,6 +40,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^22.10.5",
     "@types/nprogress": "^0.2.3",

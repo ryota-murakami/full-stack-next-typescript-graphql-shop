@@ -11,6 +11,7 @@ import { useCartStore } from '@/lib/store'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Signout } from './Signout'
+import { ThemeToggle } from './ThemeToggle'
 import { ShoppingCart } from 'lucide-react'
 
 export function Nav() {
@@ -66,6 +67,8 @@ export function Nav() {
           <Button size="sm">Sign In</Button>
         </Link>
       )}
+
+      <ThemeToggle />
     </nav>
   )
 }
