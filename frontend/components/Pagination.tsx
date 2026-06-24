@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Pagination component
  */
 import Link from 'next/link'
-import { useQuery } from '@apollo/client'
+import { useQuery } from "@apollo/client/react";
 import { PAGINATION_QUERY } from '@/lib/graphql/queries'
 import type { PaginationData } from '@/lib/graphql/types'
 import { perPage } from '@/lib/utils'

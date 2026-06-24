@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Sign up form component
  */
 import { useState } from 'react'
-import { useMutation } from '@apollo/client'
+import { useMutation } from "@apollo/client/react";
 import { useRouter } from 'next/navigation'
 import { SIGNUP_MUTATION } from '@/lib/graphql/mutations'
 import { CURRENT_USER_QUERY } from '@/lib/graphql/queries'
@@ -30,7 +29,7 @@ export function Signup() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create Account</CardTitle>
+        <CardTitle>Sign Up</CardTitle>
         <CardDescription>
           Enter your details to create a new account
         </CardDescription>

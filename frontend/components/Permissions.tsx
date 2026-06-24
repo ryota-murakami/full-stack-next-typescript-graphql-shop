@@ -1,12 +1,11 @@
-'use client'
-
+'use client';
 /**
  * Permissions Management Component
  * Admin-only component for managing user permissions.
  * Displays all users in a table with checkboxes for each permission.
  */
 import { useState } from 'react'
-import { useQuery, useMutation } from '@apollo/client'
+import { useMutation, useQuery } from "@apollo/client/react";
 import { ALL_USERS_QUERY } from '@/lib/graphql/queries'
 import { UPDATE_PERMISSIONS_MUTATION } from '@/lib/graphql/mutations'
 import type { AllUsersData, Permission, User } from '@/lib/graphql/types'

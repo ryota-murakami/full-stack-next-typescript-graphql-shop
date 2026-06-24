@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Navigation component
  */
 import Link from 'next/link'
-import { useQuery } from '@apollo/client'
+import { useQuery } from "@apollo/client/react";
 import { CURRENT_USER_QUERY } from '@/lib/graphql/queries'
 import type { CurrentUserData } from '@/lib/graphql/types'
 import { useCartStore } from '@/lib/store'
@@ -50,6 +49,7 @@ export function Nav() {
             size="sm"
             onClick={toggleCart}
             className="relative"
+            aria-label="My Cart"
           >
             <ShoppingCart className="h-5 w-5" />
             {cartCount > 0 && (

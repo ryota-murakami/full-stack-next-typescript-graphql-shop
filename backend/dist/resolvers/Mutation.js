@@ -6,17 +6,28 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import { promisify } from 'util';
+import { Prisma } from '@prisma/client';
 import { hasPermission } from '../utils.js';
 import { transport, makeANiceEmail } from '../mail.js';
 import { getStripe } from '../stripe.js';
+import { userFacingError } from '../errors.js';
 const randomBytesAsync = promisify(randomBytes);
+const duplicateAccountMessage = 'An account already exists for that email.';
+/**
+ * Detects Prisma unique constraint errors so concurrent signup attempts still return safe form feedback.
+ * @param error - The caught Prisma or runtime error.
+ * @returns True when Prisma reports a unique constraint violation.
+ * @example
+ * isUniqueConstraintError(error) // => true
+ */
+const isUniqueConstraintError = (error) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 export const Mutation = {
     /**
      * Create a new item
      */
     async createItem(_parent, args, ctx) {
         if (!ctx.request.userId) {
-            throw new Error('You must be logged in to do that!');
+            throw userFacingError('You must be logged in to do that!', 'UNAUTHENTICATED');
         }
         return ctx.prisma.item.create({
             data: {
@@ -39,6 +50,21 @@ export const Mutation = {
      */
     async updateItem(_parent, args, ctx) {
         const { id, ...updates } = args;
+        if (!ctx.request.userId) {
+            throw userFacingError('You must be logged in!', 'UNAUTHENTICATED');
+        }
+        const item = await ctx.prisma.item.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+        if (!item) {
+            throw userFacingError('Item not found', 'NOT_FOUND');
+        }
+        const ownsItem = item.userId === ctx.request.userId;
+        const hasPermissions = ctx.request.user?.permissions.some((permission) => ['ADMIN', 'ITEMUPDATE'].includes(permission));
+        if (!ownsItem && !hasPermissions) {
+            throw userFacingError("You don't have permission to update this item", 'FORBIDDEN');
+        }
         return ctx.prisma.item.update({
             where: { id },
             data: updates,
@@ -56,12 +82,12 @@ export const Mutation = {
             include: { user: true },
         });
         if (!item) {
-            throw new Error('Item not found');
+            throw userFacingError('Item not found', 'NOT_FOUND');
         }
         const ownsItem = item.userId === ctx.request.userId;
         const hasPermissions = ctx.request.user?.permissions.some((permission) => ['ADMIN', 'ITEMDELETE'].includes(permission));
         if (!ownsItem && !hasPermissions) {
-            throw new Error("You don't have permission to delete this item");
+            throw userFacingError("You don't have permission to delete this item", 'FORBIDDEN');
         }
         return ctx.prisma.item.delete({
             where: { id: args.id },
@@ -73,8 +99,14 @@ export const Mutation = {
      */
     async signup(_parent, args, ctx) {
         const email = args.email.toLowerCase();
+        const existingUser = await ctx.prisma.user.findUnique({ where: { email } });
+        // Show a stable form error instead of leaking database internals.
+        if (existingUser) {
+            throw userFacingError(duplicateAccountMessage, 'BAD_USER_INPUT');
+        }
         const password = await bcrypt.hash(args.password, 10);
-        const user = await ctx.prisma.user.create({
+        const user = await ctx.prisma.user
+            .create({
             data: {
                 email,
                 password,
@@ -86,6 +118,13 @@ export const Mutation = {
                     include: { item: true },
                 },
             },
+        })
+            .catch((error) => {
+            // Concurrent requests can pass the pre-check, so keep the DB constraint as the final guard.
+            if (isUniqueConstraintError(error)) {
+                throw userFacingError(duplicateAccountMessage, 'BAD_USER_INPUT');
+            }
+            throw error;
         });
         const token = jwt.sign({ userId: user.id }, process.env.APP_SECRET);
         ctx.response.cookie('token', token, {
@@ -107,11 +146,11 @@ export const Mutation = {
             },
         });
         if (!user) {
-            throw new Error(`No user found for email ${args.email}`);
+            throw userFacingError(`No user found for email ${args.email}`, 'NOT_FOUND');
         }
         const valid = await bcrypt.compare(args.password, user.password);
         if (!valid) {
-            throw new Error('Invalid password!');
+            throw userFacingError('Invalid password!', 'BAD_USER_INPUT');
         }
         const token = jwt.sign({ userId: user.id }, process.env.APP_SECRET);
         ctx.response.cookie('token', token, {
@@ -135,7 +174,7 @@ export const Mutation = {
             where: { email: args.email.toLowerCase() },
         });
         if (!user) {
-            throw new Error(`No user found for email ${args.email}`);
+            throw userFacingError(`No user found for email ${args.email}`, 'NOT_FOUND');
         }
         const resetToken = (await randomBytesAsync(20)).toString('hex');
         const resetTokenExpiry = Date.now() + 3600000; // 1 hour
@@ -143,18 +182,23 @@ export const Mutation = {
             where: { email: args.email.toLowerCase() },
             data: { resetToken, resetTokenExpiry },
         });
-        await transport.sendMail({
-            from: 'shop@fullstack.dev',
-            to: user.email,
-            subject: 'Your Password Reset Token',
-            html: makeANiceEmail(`
-        Your password reset token is here!
-        <br />
-        <a href="${process.env.FRONTEND_URL}/reset?resetToken=${resetToken}">
-          Click here to reset your password
-        </a>
-      `),
-        });
+        try {
+            await transport.sendMail({
+                from: 'shop@fullstack.dev',
+                to: user.email,
+                subject: 'Your Password Reset Token',
+                html: makeANiceEmail(`
+          Your password reset token is here!
+          <br />
+          <a href="${process.env.FRONTEND_URL}/reset?resetToken=${resetToken}">
+            Click here to reset your password
+          </a>
+        `),
+            });
+        }
+        catch {
+            throw userFacingError('Password reset email could not be sent. Start Mailpit with pnpm db:up or configure MAIL_HOST, MAIL_PORT, MAIL_USER, and MAIL_PASS.', 'MAIL_CONFIG_MISSING');
+        }
         return { message: 'Thanks! Check your email for a reset link.' };
     },
     /**
@@ -162,7 +206,7 @@ export const Mutation = {
      */
     async resetPassword(_parent, args, ctx) {
         if (args.password !== args.confirmPassword) {
-            throw new Error("Passwords don't match!");
+            throw userFacingError("Passwords don't match!", 'BAD_USER_INPUT');
         }
         const user = await ctx.prisma.user.findFirst({
             where: {
@@ -171,7 +215,7 @@ export const Mutation = {
             },
         });
         if (!user) {
-            throw new Error('This token is either invalid or expired!');
+            throw userFacingError('This token is either invalid or expired!', 'BAD_USER_INPUT');
         }
         const password = await bcrypt.hash(args.password, 10);
         const updatedUser = await ctx.prisma.user.update({
@@ -199,7 +243,7 @@ export const Mutation = {
      */
     async updatePermissions(_parent, args, ctx) {
         if (!ctx.request.userId) {
-            throw new Error('You must be logged in!');
+            throw userFacingError('You must be logged in!', 'UNAUTHENTICATED');
         }
         hasPermission(ctx.request.user, ['ADMIN', 'PERMISSIONUPDATE']);
         return ctx.prisma.user.update({
@@ -219,7 +263,7 @@ export const Mutation = {
      */
     async addToCart(_parent, args, ctx) {
         if (!ctx.request.userId) {
-            throw new Error('You must be signed in!');
+            throw userFacingError('You must be signed in!', 'UNAUTHENTICATED');
         }
         const existingCartItem = await ctx.prisma.cartItem.findFirst({
             where: {
@@ -257,10 +301,10 @@ export const Mutation = {
             include: { user: true },
         });
         if (!cartItem) {
-            throw new Error('No cart item found!');
+            throw userFacingError('No cart item found!', 'NOT_FOUND');
         }
         if (cartItem.userId !== ctx.request.userId) {
-            throw new Error('This is not your cart item!');
+            throw userFacingError('This is not your cart item!', 'FORBIDDEN');
         }
         return ctx.prisma.cartItem.delete({
             where: { id: args.id },
@@ -275,7 +319,7 @@ export const Mutation = {
      */
     async createOrder(_parent, args, ctx) {
         if (!ctx.request.userId) {
-            throw new Error('You must be signed in to complete this order.');
+            throw userFacingError('You must be signed in to complete this order.', 'UNAUTHENTICATED');
         }
         const user = await ctx.prisma.user.findUnique({
             where: { id: ctx.request.userId },
@@ -286,32 +330,38 @@ export const Mutation = {
             },
         });
         if (!user) {
-            throw new Error('User not found');
+            throw userFacingError('User not found', 'NOT_FOUND');
         }
-        // Calculate total
-        const amount = user.cart.reduce((tally, cartItem) => {
-            if (!cartItem.item)
-                return tally;
-            return tally + cartItem.item.price * cartItem.quantity;
-        }, 0);
+        if (user.cart.length === 0) {
+            throw userFacingError('Your cart is empty.', 'BAD_USER_INPUT');
+        }
+        const orderItems = [];
+        let amount = 0;
+        // Deleted items remain as null references, so skip them before charging.
+        for (const cartItem of user.cart) {
+            if (!cartItem.item) {
+                continue;
+            }
+            amount += cartItem.item.price * cartItem.quantity;
+            orderItems.push({
+                title: cartItem.item.title,
+                description: cartItem.item.description,
+                image: cartItem.item.image || '',
+                largeImage: cartItem.item.largeImage || '',
+                price: cartItem.item.price,
+                quantity: cartItem.quantity,
+                userId: ctx.request.userId,
+            });
+        }
+        if (orderItems.length === 0) {
+            throw userFacingError('Your cart does not contain available items.', 'BAD_USER_INPUT');
+        }
         // Create Stripe charge
         const charge = await getStripe().charges.create({
             amount,
             currency: 'USD',
             source: args.token,
         });
-        // Convert cart items to order items
-        const orderItems = user.cart
-            .filter((cartItem) => cartItem.item !== null)
-            .map((cartItem) => ({
-            title: cartItem.item.title,
-            description: cartItem.item.description,
-            image: cartItem.item.image || '',
-            largeImage: cartItem.item.largeImage || '',
-            price: cartItem.item.price,
-            quantity: cartItem.quantity,
-            userId: ctx.request.userId,
-        }));
         // Create order
         const order = await ctx.prisma.order.create({
             data: {

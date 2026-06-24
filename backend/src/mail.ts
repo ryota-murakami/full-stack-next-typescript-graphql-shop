@@ -3,17 +3,29 @@
  */
 import nodemailer from 'nodemailer'
 
+const mailUser = process.env.MAIL_USER
+const mailPass = process.env.MAIL_PASS
+
 const transport = nodemailer.createTransport({
-  host: process.env.MAIL_HOST,
-  port: Number(process.env.MAIL_PORT) || 587,
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
+  host: process.env.MAIL_HOST || 'localhost',
+  port: Number(process.env.MAIL_PORT) || 1025,
+  secure: false,
+  ...(mailUser && mailPass
+    ? {
+        auth: {
+          user: mailUser,
+          pass: mailPass,
+        },
+      }
+    : {}),
 })
 
 /**
- * Generate a nice HTML email template
+ * Generates the password-reset email HTML used by the requestReset resolver.
+ * @param text - HTML-safe reset body created by the resolver.
+ * @returns Full HTML email body.
+ * @example
+ * makeANiceEmail('Reset link') // => '<div ...>Reset link...</div>'
  */
 export function makeANiceEmail(text: string): string {
   return `

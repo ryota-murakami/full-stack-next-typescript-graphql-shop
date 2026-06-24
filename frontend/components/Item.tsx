@@ -1,11 +1,10 @@
-'use client'
-
+'use client';
 /**
  * Individual item card component
  */
 import Image from 'next/image'
 import Link from 'next/link'
-import { useMutation, useQuery } from '@apollo/client'
+import { useMutation, useQuery } from "@apollo/client/react";
 import { ADD_TO_CART_MUTATION, DELETE_ITEM_MUTATION } from '@/lib/graphql/mutations'
 import { ALL_ITEMS_QUERY, CURRENT_USER_QUERY } from '@/lib/graphql/queries'
 import type { Item as ItemType, CurrentUserData } from '@/lib/graphql/types'
@@ -73,24 +72,29 @@ export function Item({ item }: ItemProps) {
               <ShoppingCart className="mr-1 h-4 w-4" />
               Add to Cart
             </Button>
-            <Link href={`/update/${item.id}`}>
-              <Button variant="outline" size="sm">
-                <Pencil className="mr-1 h-4 w-4" />
-                Edit
-              </Button>
-            </Link>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (confirm('Are you sure you want to delete this item?')) {
-                  deleteItem()
-                }
-              }}
-              disabled={deleting}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {user.id === item.user?.id && (
+              <>
+                <Link href={`/update/${item.id}`}>
+                  <Button variant="outline" size="sm">
+                    <Pencil className="mr-1 h-4 w-4" />
+                    Edit
+                  </Button>
+                </Link>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to delete this item?')) {
+                      deleteItem()
+                    }
+                  }}
+                  disabled={deleting}
+                  aria-label="Delete item"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </>
         )}
       </CardFooter>

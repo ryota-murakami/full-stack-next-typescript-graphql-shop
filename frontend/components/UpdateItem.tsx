@@ -1,10 +1,8 @@
-'use client'
-
+'use client';
 /**
  * Update item form component
  */
-import { useState, useEffect } from 'react'
-import { useQuery, useMutation } from '@apollo/client'
+import { useMutation, useQuery } from "@apollo/client/react";
 import { useRouter } from 'next/navigation'
 import { SINGLE_ITEM_QUERY } from '@/lib/graphql/queries'
 import { UPDATE_ITEM_MUTATION } from '@/lib/graphql/mutations'
@@ -21,24 +19,12 @@ interface UpdateItemProps {
 
 export function UpdateItem({ id }: UpdateItemProps) {
   const router = useRouter()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [price, setPrice] = useState('')
-
   const { data, loading: queryLoading } = useQuery<SingleItemData>(
     SINGLE_ITEM_QUERY,
     {
       variables: { id },
     }
   )
-
-  useEffect(() => {
-    if (data?.item) {
-      setTitle(data.item.title)
-      setDescription(data.item.description)
-      setPrice((data.item.price / 100).toString())
-    }
-  }, [data])
 
   const [updateItem, { loading: updateLoading, error }] = useMutation(
     UPDATE_ITEM_MUTATION,
@@ -49,8 +35,13 @@ export function UpdateItem({ id }: UpdateItemProps) {
     }
   )
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const title = String(formData.get('title') ?? '')
+    const description = String(formData.get('description') ?? '')
+    const price = String(formData.get('price') ?? '0')
+
     updateItem({
       variables: {
         id,
@@ -90,9 +81,9 @@ export function UpdateItem({ id }: UpdateItemProps) {
             <Label htmlFor="title">Title</Label>
             <Input
               id="title"
+              name="title"
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              defaultValue={data.item.title}
               required
             />
           </div>
@@ -100,11 +91,11 @@ export function UpdateItem({ id }: UpdateItemProps) {
             <Label htmlFor="price">Price (USD)</Label>
             <Input
               id="price"
+              name="price"
               type="number"
               step="0.01"
               min="0"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              defaultValue={(data.item.price / 100).toString()}
               required
             />
           </div>
@@ -112,9 +103,9 @@ export function UpdateItem({ id }: UpdateItemProps) {
             <Label htmlFor="description">Description</Label>
             <textarea
               id="description"
+              name="description"
               className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              defaultValue={data.item.description}
               required
             />
           </div>

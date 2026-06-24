@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Individual cart item component
  */
 import Image from 'next/image'
-import { useMutation } from '@apollo/client'
+import { useMutation } from "@apollo/client/react";
 import { REMOVE_FROM_CART_MUTATION } from '@/lib/graphql/mutations'
 import { CURRENT_USER_QUERY } from '@/lib/graphql/queries'
 import type { CartItem as CartItemType } from '@/lib/graphql/types'
@@ -37,6 +36,7 @@ export function CartItem({ cartItem }: CartItemProps) {
           size="icon"
           onClick={() => removeFromCart()}
           disabled={loading}
+          aria-label="Remove from cart"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -70,6 +70,7 @@ export function CartItem({ cartItem }: CartItemProps) {
         size="icon"
         onClick={() => removeFromCart()}
         disabled={loading}
+        aria-label="Remove from cart"
       >
         <Trash2 className="h-4 w-4" />
       </Button>

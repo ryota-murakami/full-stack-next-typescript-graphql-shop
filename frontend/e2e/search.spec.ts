@@ -56,9 +56,11 @@ test.describe('Search', () => {
       // Wait for debounce
       await page.waitForTimeout(500)
 
-      // Should show the item in results
-      await expect(page.locator('.rounded-md.border.bg-popover')).toBeVisible()
-      await expect(page.getByText(title)).toBeVisible()
+      // Should show the item in dropdown results
+      const dropdown = page.locator('.rounded-md.border.bg-popover')
+      await expect(dropdown).toBeVisible()
+      // Use dropdown-scoped selector to avoid matching page heading
+      await expect(dropdown.getByText(title)).toBeVisible()
     })
 
     test('should show no results message when no matches', async ({ page }) => {
@@ -88,11 +90,12 @@ test.describe('Search', () => {
       // Wait for results
       await page.waitForTimeout(500)
 
-      // Click on the result
-      await page.getByText(title).click()
+      // Click on the result in dropdown (use dropdown-scoped selector to avoid matching page)
+      const dropdown = page.locator('.rounded-md.border.bg-popover')
+      await dropdown.getByText(title).click()
 
       // Should navigate to item detail page
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
       await expect(page.getByRole('heading', { name: title })).toBeVisible()
     })
 
@@ -107,12 +110,13 @@ test.describe('Search', () => {
       const searchInput = page.getByPlaceholder(/search items/i)
       await searchInput.fill('Clear Test Item')
 
-      // Wait for results and click
+      // Wait for results and click (use dropdown-scoped selector)
       await page.waitForTimeout(500)
-      await page.getByText(title).click()
+      const dropdown = page.locator('.rounded-md.border.bg-popover')
+      await dropdown.getByText(title).click()
 
       // Wait for navigation
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Search input should be cleared
       await expect(searchInput).toHaveValue('')
@@ -162,8 +166,8 @@ test.describe('Search', () => {
       const searchInput = page.getByPlaceholder(/search items/i)
       await searchInput.fill('test')
 
-      // Loading spinner should appear
-      await expect(page.locator('svg.animate-spin')).toBeVisible()
+      // Loading spinner should appear (use first() to handle multiple spinners)
+      await expect(page.locator('svg.animate-spin').first()).toBeVisible()
     })
   })
 })

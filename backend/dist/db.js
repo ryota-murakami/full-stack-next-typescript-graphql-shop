@@ -1,10 +1,26 @@
 /**
  * Prisma Client instance for database operations
- * Replaces the old prisma-binding approach
+ * @description Prisma 7+ requires driver adapters for database connections
  */
+import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+/**
+ * Creates a new PrismaClient instance with PostgreSQL adapter
+ * @returns PrismaClient instance configured with DATABASE_URL
+ */
+function createPrismaClient() {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+        throw new Error('DATABASE_URL is required to create the Prisma client.');
+    }
+    const adapter = new PrismaPg({
+        connectionString: databaseUrl,
+    });
+    return new PrismaClient({ adapter });
+}
 // Prevent multiple instances in development (hot reload)
-export const prisma = global.prisma || new PrismaClient();
+export const prisma = global.prisma || createPrismaClient();
 if (process.env.NODE_ENV !== 'production') {
     global.prisma = prisma;
 }

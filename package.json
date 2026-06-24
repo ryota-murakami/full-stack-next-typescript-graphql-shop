@@ -10,11 +10,12 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
-    "prisma:generate": "pnpm --filter backend prisma generate",
-    "prisma:migrate": "pnpm --filter backend prisma migrate dev",
-    "prisma:studio": "pnpm --filter backend prisma studio"
+    "db:seed": "pnpm --filter full-stack-shop-backend --fail-if-no-match prisma:seed",
+    "prisma:generate": "pnpm --filter full-stack-shop-backend --fail-if-no-match prisma:generate",
+    "prisma:migrate": "pnpm --filter full-stack-shop-backend --fail-if-no-match prisma:migrate",
+    "prisma:studio": "pnpm --filter full-stack-shop-backend --fail-if-no-match prisma:studio"
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "typescript": "^6.0.3"
   }
 }

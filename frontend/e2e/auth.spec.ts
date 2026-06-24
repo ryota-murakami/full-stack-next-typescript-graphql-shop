@@ -57,8 +57,8 @@ test.describe('Authentication', () => {
       await page.getByLabel(/password/i).fill('password123')
       await page.getByRole('button', { name: /sign up/i }).click()
 
-      // Should show error message
-      await expect(page.getByText(/already exists/i)).toBeVisible()
+      // Should show safe duplicate account feedback.
+      await expect(page.locator('main').getByText(/already exists/i)).toBeVisible()
     })
   })
 
@@ -67,8 +67,9 @@ test.describe('Authentication', () => {
       await page.goto('/signin')
 
       await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
-      await expect(page.getByLabel(/email/i)).toBeVisible()
-      await expect(page.getByLabel(/password/i)).toBeVisible()
+      // Signin page has two email fields (signin + reset), use locator by ID
+      await expect(page.locator('#signin-email')).toBeVisible()
+      await expect(page.locator('#signin-password')).toBeVisible()
     })
 
     test('should sign in with valid credentials', async ({ page }) => {
@@ -84,11 +85,12 @@ test.describe('Authentication', () => {
       // Sign out
       await page.getByRole('button', { name: /sign out/i }).click()
 
-      // Now sign in
+      // Now sign in - use ID selectors to avoid strict mode violation
       await page.goto('/signin')
-      await page.getByLabel(/email/i).fill(email)
-      await page.getByLabel(/password/i).fill('password123')
-      await page.getByRole('button', { name: /sign in/i }).click()
+      await page.locator('#signin-email').fill(email)
+      await page.locator('#signin-password').fill('password123')
+      // Click form submit button (not nav link button)
+      await page.locator('main').getByRole('button', { name: /sign in/i }).click()
 
       await expect(page).toHaveURL('/')
     })
@@ -96,11 +98,14 @@ test.describe('Authentication', () => {
     test('should show error for invalid credentials', async ({ page }) => {
       await page.goto('/signin')
 
-      await page.getByLabel(/email/i).fill('nonexistent@example.com')
-      await page.getByLabel(/password/i).fill('wrongpassword')
-      await page.getByRole('button', { name: /sign in/i }).click()
+      // Use ID selectors for signin page
+      await page.locator('#signin-email').fill('nonexistent@example.com')
+      await page.locator('#signin-password').fill('wrongpassword')
+      // Click form submit button (not nav link button)
+      await page.locator('main').getByRole('button', { name: /sign in/i }).click()
 
-      await expect(page.getByText(/invalid/i)).toBeVisible()
+      // Error message appears when credentials are invalid
+      await expect(page.locator('main').getByText(/no user found/i)).toBeVisible()
     })
   })
 
@@ -162,13 +167,15 @@ test.describe('Authentication', () => {
       const title = `Cart Test Item ${Date.now()}`
       await page.getByLabel(/title/i).fill(title)
       await page.getByLabel(/description/i).fill('Test item')
-      await page.getByLabel(/price/i).fill('1000')
+      await page.getByLabel(/price/i).fill('10') // $10.00 (component converts to cents)
       await page.getByRole('button', { name: /create/i }).click()
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Add to cart
       await page.goto('/items')
-      const itemCard = page.locator(`text=${title}`).locator('..').locator('..')
+      // Wait for the specific item to appear
+      await page.waitForSelector(`text=${title}`, { timeout: 10000 })
+      const itemCard = page.locator(`text=${title}`).locator('..').locator('..').locator('..')
       await itemCard.getByRole('button', { name: /add to cart/i }).click()
 
       // Verify cart has item (badge shows 1)
@@ -177,17 +184,18 @@ test.describe('Authentication', () => {
       // Sign out
       await page.getByRole('button', { name: /sign out/i }).click()
 
-      // Sign back in
+      // Sign back in - use ID selectors for signin page
       await page.goto('/signin')
-      await page.getByLabel(/email/i).first().fill(email)
-      await page.getByLabel(/password/i).first().fill('password123')
-      await page.getByRole('button', { name: /sign in/i }).click()
+      await page.locator('#signin-email').fill(email)
+      await page.locator('#signin-password').fill('password123')
+      // Click form submit button (not nav link button)
+      await page.locator('main').getByRole('button', { name: /sign in/i }).click()
       await expect(page).toHaveURL('/')
 
       // Cart should still have the item (server-persisted)
       // OR be empty if cart is cleared on logout
       // This verifies the cart state is properly handled
-      const cartButton = page.locator('nav').getByRole('button', { name: /shopping/i })
+      const cartButton = page.locator('nav').getByRole('button', { name: /my cart/i })
       await expect(cartButton).toBeVisible()
     })
 

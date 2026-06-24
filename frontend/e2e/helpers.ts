@@ -42,15 +42,25 @@ export async function createTestUser(
  * @param page - Playwright page instance
  * @param email - User email
  * @param password - User password
+ * @param expectedUrl - The URL expected after successful signin.
+ * @param signinPath - The signin URL to open before filling credentials.
  * @example
- * await signIn(page, 'user@example.com', 'password123')
+ * await signIn(page, 'user@example.com', 'password123', '/orders', '/signin?next=%2Forders')
  */
-export async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/signin')
-  await page.getByLabel(/email/i).fill(email)
-  await page.getByLabel(/password/i).fill(password)
-  await page.getByRole('button', { name: /sign in/i }).click()
-  await expect(page).toHaveURL('/')
+export async function signIn(
+  page: Page,
+  email: string,
+  password: string,
+  expectedUrl = '/',
+  signinPath = '/signin'
+) {
+  await page.goto(signinPath)
+  // Use ID selectors - signin page has multiple email fields (signin + reset)
+  await page.locator('#signin-email').fill(email)
+  await page.locator('#signin-password').fill(password)
+  // Click form submit button (not nav link button) - use main to scope to form
+  await page.locator('main').getByRole('button', { name: /sign in/i }).click()
+  await expect(page).toHaveURL(expectedUrl)
 }
 
 /**
@@ -93,7 +103,8 @@ export async function createItem(
   await page.getByLabel(/price/i).fill(price)
   await page.getByRole('button', { name: /create/i }).click()
 
-  await expect(page.url()).toContain('/item/')
+  // Wait for redirect to item page (use toHaveURL with regex for proper async waiting)
+  await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
   return { title, description, price }
 }
@@ -107,7 +118,9 @@ export async function createItem(
  */
 export async function addToCart(page: Page, itemTitle: string) {
   await page.goto('/items')
-  const itemCard = page.locator(`text=${itemTitle}`).locator('..').locator('..')
+  // Wait for the specific item to appear (handles Apollo cache delays)
+  await page.waitForSelector(`text=${itemTitle}`, { timeout: 10000 })
+  const itemCard = page.locator(`text=${itemTitle}`).locator('..').locator('..').locator('..')
   await itemCard.getByRole('button', { name: /add to cart/i }).click()
 }
 
@@ -116,7 +129,7 @@ export async function addToCart(page: Page, itemTitle: string) {
  * @param page - Playwright page instance
  */
 export async function openCart(page: Page) {
-  await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+  await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
   await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
 }
 
@@ -128,11 +141,14 @@ export async function openCart(page: Page) {
  * await waitForGraphQL(page, 'SearchItems')
  */
 export async function waitForGraphQL(page: Page, operationName: string) {
-  await page.waitForResponse(
-    (response) =>
+  await page.waitForResponse((response) => {
+    const postData = response.request().postData()
+    return (
       response.url().includes('/graphql') &&
-      response.request().postData()?.includes(operationName)
-  )
+      postData !== null &&
+      postData.includes(operationName)
+    )
+  })
 }
 
 /**

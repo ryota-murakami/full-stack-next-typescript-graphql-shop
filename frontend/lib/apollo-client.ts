@@ -1,8 +1,14 @@
 /**
  * Apollo Client configuration for Next.js App Router
  */
-import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
-import { onError } from '@apollo/client/link/error'
+import {
+  ApolloClient,
+  InMemoryCache,
+  HttpLink,
+  CombinedGraphQLErrors,
+  from,
+} from '@apollo/client'
+import { ErrorLink } from '@apollo/client/link/error'
 
 const endpoint =
   process.env.NODE_ENV === 'development'
@@ -10,18 +16,31 @@ const endpoint =
     : process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql'
 
 /**
- * Error handling link
+ * Logs Apollo errors without triggering Next.js dev overlay for expected GraphQL failures.
+ * @param message - The printable error summary.
+ * @param details - Optional structured error details from Apollo.
+ * @returns Nothing; writes to the browser console only.
+ * @example
+ * logApolloError('[GraphQL error]: Message: Nope')
  */
-const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors) {
-    graphQLErrors.forEach(({ message, locations, path }) =>
-      console.error(
-        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
+const logApolloError = (message: string, details?: unknown) => {
+  const logger = process.env.NODE_ENV === 'production' ? console.error : console.warn
+  logger(message, details)
+}
+
+/**
+ * Error handling link
+ * @description Logs GraphQL and network errors to console (Apollo Client 4 API)
+ */
+const errorLink = new ErrorLink(({ error }) => {
+  if (CombinedGraphQLErrors.is(error)) {
+    error.errors.forEach(({ message, locations, path }) =>
+      logApolloError(
+        `[GraphQL error]: Message: ${message}, Location: ${JSON.stringify(locations)}, Path: ${path}`
       )
     )
-  }
-  if (networkError) {
-    console.error(`[Network error]: ${networkError}`)
+  } else if (error) {
+    logApolloError('[Network error]:', error)
   }
 })
 
@@ -35,10 +54,12 @@ const httpLink = new HttpLink({
 
 /**
  * Create Apollo Client instance
+ * @returns ApolloClient configured for the application
  */
 export function makeClient() {
   return new ApolloClient({
     link: from([errorLink, httpLink]),
+
     cache: new InMemoryCache({
       typePolicies: {
         Query: {
@@ -47,6 +68,7 @@ export function makeClient() {
             items: {
               keyArgs: ['where'],
               merge(existing = [], incoming) {
+                void existing
                 return [...incoming]
               },
             },
@@ -63,6 +85,7 @@ export function makeClient() {
         },
       },
     }),
+
     defaultOptions: {
       watchQuery: {
         fetchPolicy: 'cache-and-network',
@@ -72,8 +95,12 @@ export function makeClient() {
 }
 
 // Singleton client for SSR
-let client: ApolloClient<unknown> | undefined
+let client: ReturnType<typeof makeClient> | undefined
 
+/**
+ * Get Apollo Client instance (singleton in browser)
+ * @returns ApolloClient instance
+ */
 export function getClient() {
   if (typeof window === 'undefined') {
     // Server: always create a new client

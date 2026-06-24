@@ -25,6 +25,7 @@ export interface Item {
   image?: string | null
   largeImage?: string | null
   price: number
+  user?: { id: string } | null
 }
 
 export interface CartItem {
@@ -92,4 +93,16 @@ export interface SingleOrderData {
 
 export interface UserOrdersData {
   orders: Order[]
+}
+
+export interface CreateOrderData {
+  createOrder: {
+    id: string
+    charge: string
+    total: number
+    items: Array<{
+      id: string
+      title: string
+    }>
+  }
 }

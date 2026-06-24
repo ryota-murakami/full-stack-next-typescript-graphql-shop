@@ -1,11 +1,14 @@
-'use client'
-
+'use client';
 /**
  * Shopping cart sidebar component
  */
-import { useQuery } from '@apollo/client'
+
+
+import { useRouter } from 'next/navigation'
+import { useMutation, useQuery } from "@apollo/client/react";
 import { CURRENT_USER_QUERY } from '@/lib/graphql/queries'
-import type { CurrentUserData } from '@/lib/graphql/types'
+import { CREATE_ORDER_MUTATION } from '@/lib/graphql/mutations'
+import type { CreateOrderData, CurrentUserData } from '@/lib/graphql/types'
 import { useCartStore } from '@/lib/store'
 import { formatMoney, calcTotalPrice } from '@/lib/utils'
 import { Button } from './ui/button'
@@ -13,8 +16,19 @@ import { CartItem } from './CartItem'
 import { X } from 'lucide-react'
 
 export function Cart() {
+  const router = useRouter()
   const { data } = useQuery<CurrentUserData>(CURRENT_USER_QUERY)
   const { isOpen, close } = useCartStore()
+  const checkoutToken = process.env.NEXT_PUBLIC_STRIPE_TEST_TOKEN || 'tok_visa'
+  const [createOrder, { loading: checkingOut, error: checkoutError }] =
+    useMutation<CreateOrderData>(CREATE_ORDER_MUTATION, {
+      variables: { token: checkoutToken },
+      refetchQueries: [{ query: CURRENT_USER_QUERY }],
+      onCompleted: (result) => {
+        close()
+        router.push(`/order/${result.createOrder.id}`)
+      },
+    })
 
   const user = data?.me
   if (!user) return null
@@ -39,8 +53,8 @@ export function Cart() {
         <div className="flex h-full flex-col">
           {/* Header */}
           <header className="flex items-center justify-between border-b p-4">
-            <h2 className="text-lg font-semibold">{user.name}&apos;s Cart</h2>
-            <Button variant="ghost" size="icon" onClick={close}>
+            <h2 className="text-lg font-semibold">Your Cart</h2>
+            <Button variant="ghost" size="icon" onClick={close} aria-label="Close cart">
               <X className="h-5 w-5" />
             </Button>
           </header>
@@ -67,8 +81,18 @@ export function Cart() {
                 <span>Total</span>
                 <span>{formatMoney(calcTotalPrice(user.cart))}</span>
               </div>
-              <Button className="w-full" size="lg">
-                Checkout
+              {checkoutError && (
+                <p className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {checkoutError.message}
+                </p>
+              )}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => createOrder()}
+                disabled={checkingOut}
+              >
+                {checkingOut ? 'Checking out...' : 'Checkout'}
               </Button>
             </footer>
           )}

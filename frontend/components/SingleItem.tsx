@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Single item detail component
  */
 import Image from 'next/image'
-import { useQuery } from '@apollo/client'
+import { useQuery } from "@apollo/client/react";
 import { SINGLE_ITEM_QUERY } from '@/lib/graphql/queries'
 import type { SingleItemData } from '@/lib/graphql/types'
 import { formatMoney } from '@/lib/utils'

@@ -1,9 +1,10 @@
-'use client'
-
+'use client';
 /**
  * Items grid component
  */
-import { useQuery } from '@apollo/client'
+
+
+import { useQuery } from "@apollo/client/react";
 import { ALL_ITEMS_QUERY } from '@/lib/graphql/queries'
 import type { AllItemsData } from '@/lib/graphql/types'
 import { perPage } from '@/lib/utils'

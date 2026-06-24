@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Sign in form component
  */
 import { useState } from 'react'
-import { useMutation } from '@apollo/client'
+import { useMutation } from "@apollo/client/react";
 import { useRouter } from 'next/navigation'
 import { SIGNIN_MUTATION } from '@/lib/graphql/mutations'
 import { CURRENT_USER_QUERY } from '@/lib/graphql/queries'
@@ -13,7 +12,26 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 
-export function Signin() {
+interface SigninProps {
+  nextPath?: string
+}
+
+/**
+ * Keeps proxy return URLs local so signin cannot redirect off-site.
+ * @param nextPath - The requested path from the signin query string.
+ * @returns A safe relative path, or the home page when unsafe.
+ * @example
+ * getSafeNextPath('/orders') // => '/orders'
+ */
+function getSafeNextPath(nextPath: string | undefined): string {
+  if (!nextPath || !nextPath.startsWith('/') || nextPath.startsWith('//')) {
+    return '/'
+  }
+
+  return nextPath
+}
+
+export function Signin({ nextPath }: SigninProps) {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,7 +40,7 @@ export function Signin() {
     variables: { email, password },
     refetchQueries: [{ query: CURRENT_USER_QUERY }],
     onCompleted: () => {
-      router.push('/')
+      router.push(getSafeNextPath(nextPath))
     },
   })
 

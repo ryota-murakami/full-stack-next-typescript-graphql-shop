@@ -3,8 +3,12 @@
  */
 import type { Permission, User } from '@prisma/client';
 /**
- * Check if user has required permissions
- * @throws Error if user lacks permissions
+ * Ensures a signed-in user has at least one required permission before admin resolvers run.
+ * @param user - The current user loaded from the auth cookie.
+ * @param permissionsNeeded - The accepted permissions for this operation.
+ * @returns Nothing when access is allowed; throws a safe GraphQL error otherwise.
+ * @example
+ * hasPermission(user, ['ADMIN'])
  */
 export declare function hasPermission(user: Pick<User, 'permissions'> | null | undefined, permissionsNeeded: Permission[]): void;
 /**

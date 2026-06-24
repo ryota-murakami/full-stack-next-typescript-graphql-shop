@@ -1,12 +1,11 @@
-'use client'
-
+'use client';
 /**
  * Reset Password Component
  * Allows users to set a new password using a reset token.
  * Token is received from the password reset email link.
  */
 import { useState } from 'react'
-import { useMutation } from '@apollo/client'
+import { useMutation } from "@apollo/client/react";
 import { useRouter } from 'next/navigation'
 import { RESET_PASSWORD_MUTATION } from '@/lib/graphql/mutations'
 import { CURRENT_USER_QUERY } from '@/lib/graphql/queries'

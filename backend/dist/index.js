@@ -54,15 +54,6 @@ app.use(async (req, _res, next) => {
     req.user = user;
     next();
 });
-// Create Yoga instance with custom context
-const yoga = createYoga({
-    schema,
-    cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-        credentials: true,
-    },
-    graphiql: true,
-});
 // Custom handler to pass Express req/res to Yoga context
 app.use('/graphql', (req, res) => {
     // Store req/res on request object for context access
@@ -81,7 +72,8 @@ app.use('/graphql', (req, res) => {
             origin: process.env.FRONTEND_URL || 'http://localhost:3000',
             credentials: true,
         },
-        graphiql: true,
+        graphiql: process.env.NODE_ENV !== 'production',
+        maskedErrors: process.env.NODE_ENV === 'production',
     });
     return yogaHandler(req, res);
 });

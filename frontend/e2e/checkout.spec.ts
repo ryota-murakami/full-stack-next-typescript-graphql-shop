@@ -24,15 +24,18 @@ test.describe('Checkout', () => {
     const title = `Checkout Item ${Date.now()}`
     await page.getByLabel(/title/i).fill(title)
     await page.getByLabel(/description/i).fill('Test item for checkout')
-    await page.getByLabel(/price/i).fill('2500') // $25.00
+    await page.getByLabel(/price/i).fill('25') // $25.00 (component converts to cents)
     await page.getByRole('button', { name: /create/i }).click()
 
-    await expect(page.url()).toContain('/item/')
+    await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
     // Add item to cart
     await page.goto('/items')
-    const itemCard = page.locator(`text=${title}`).locator('..').locator('..')
-    await itemCard.getByRole('button', { name: /add to cart/i }).click()
+    // Wait for the specific item to appear (handles Apollo cache delays)
+    await page.waitForSelector(`text=${title}`, { timeout: 10000 })
+    const itemCard = page.locator(`text=${title}`).locator('..').locator('..').locator('..')
+    // Use first() to handle case where parent locator matches multiple items
+    await itemCard.getByRole('button', { name: /add to cart/i }).first().click()
 
     return { email, title }
   }
@@ -42,7 +45,7 @@ test.describe('Checkout', () => {
       await setupCheckoutScenario(page)
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
       // Checkout button should be visible
       await expect(page.getByRole('button', { name: /checkout/i })).toBeVisible()
@@ -52,10 +55,10 @@ test.describe('Checkout', () => {
       await setupCheckoutScenario(page)
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
-      // Should show the total ($25.00)
-      await expect(page.getByText('$25')).toBeVisible()
+      // Should show the total ($25.00) - use first() to handle multiple price displays
+      await expect(page.getByText('$25').first()).toBeVisible()
     })
 
     // Note: Full Stripe checkout test requires Stripe test card
@@ -64,11 +67,26 @@ test.describe('Checkout', () => {
       await setupCheckoutScenario(page)
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
       // Check that checkout is available
       const checkoutButton = page.getByRole('button', { name: /checkout/i })
       await expect(checkoutButton).toBeEnabled()
+    })
+
+    test('should complete checkout against local Stripe test config', async ({ page }) => {
+      test.skip(
+        !process.env.STRIPE_SECRET,
+        'Set STRIPE_SECRET=sk_test_... to run the non-mocked checkout path.'
+      )
+
+      await setupCheckoutScenario(page)
+
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
+      await page.getByRole('button', { name: /checkout/i }).click()
+
+      await expect(page).toHaveURL(/\/order\//, { timeout: 15000 })
+      await expect(page.getByRole('heading', { name: /order/i })).toBeVisible()
     })
   })
 
@@ -109,7 +127,7 @@ test.describe('Checkout', () => {
       await setupCheckoutScenario(page)
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
       // Checkout button should be visible
       const checkoutButton = page.getByRole('button', { name: /checkout/i })
@@ -129,8 +147,9 @@ test.describe('Checkout', () => {
             contentType: 'application/json',
             body: JSON.stringify({
               data: {
-                checkout: {
+                createOrder: {
                   id: 'test-order-id',
+                  charge: 'ch_test',
                   total: 2500,
                   items: [
                     {
@@ -150,7 +169,7 @@ test.describe('Checkout', () => {
       })
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
       // Checkout button should be clickable
       const checkoutButton = page.getByRole('button', { name: /checkout/i })
@@ -173,29 +192,29 @@ test.describe('Checkout', () => {
       const title1 = `Multi Item 1 ${Date.now()}`
       await page.getByLabel(/title/i).fill(title1)
       await page.getByLabel(/description/i).fill('First item')
-      await page.getByLabel(/price/i).fill('1000') // $10.00
+      await page.getByLabel(/price/i).fill('10') // $10.00 (component converts to cents)
       await page.getByRole('button', { name: /create/i }).click()
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Create second item
       await page.goto('/sell')
       const title2 = `Multi Item 2 ${Date.now()}`
       await page.getByLabel(/title/i).fill(title2)
       await page.getByLabel(/description/i).fill('Second item')
-      await page.getByLabel(/price/i).fill('1500') // $15.00
+      await page.getByLabel(/price/i).fill('15') // $15.00 (component converts to cents)
       await page.getByRole('button', { name: /create/i }).click()
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
-      // Add both items to cart
+      // Add both items to cart - use first() to handle case where parent locator matches multiple items
       await page.goto('/items')
-      const item1Card = page.locator(`text=${title1}`).locator('..').locator('..')
-      await item1Card.getByRole('button', { name: /add to cart/i }).click()
+      const item1Card = page.locator(`text=${title1}`).locator('..').locator('..').locator('..')
+      await item1Card.getByRole('button', { name: /add to cart/i }).first().click()
 
-      const item2Card = page.locator(`text=${title2}`).locator('..').locator('..')
-      await item2Card.getByRole('button', { name: /add to cart/i }).click()
+      const item2Card = page.locator(`text=${title2}`).locator('..').locator('..').locator('..')
+      await item2Card.getByRole('button', { name: /add to cart/i }).first().click()
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
       // Should show total ($10 + $15 = $25)
       await expect(page.getByText('$25')).toBeVisible()
@@ -209,14 +228,15 @@ test.describe('Checkout', () => {
       // Mock successful order creation
       await page.route('**/graphql', async (route) => {
         const postData = route.request().postData()
-        if (postData?.includes('createOrder') || postData?.includes('checkout')) {
+        if (postData?.includes('createOrder')) {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
             body: JSON.stringify({
               data: {
-                checkout: {
+                createOrder: {
                   id: 'completed-order-123',
+                  charge: 'ch_completed',
                   total: 2500,
                   items: [
                     {
@@ -230,16 +250,43 @@ test.describe('Checkout', () => {
               },
             }),
           })
+        } else if (postData?.includes('SingleOrder')) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              data: {
+                order: {
+                  id: 'completed-order-123',
+                  charge: 'ch_completed',
+                  total: 2500,
+                  createdAt: new Date().toISOString(),
+                  user: { id: 'user-id' },
+                  items: [
+                    {
+                      id: 'item-1',
+                      title: 'Checkout Item',
+                      description: 'Test item for checkout',
+                      price: 2500,
+                      image: null,
+                      quantity: 1,
+                    },
+                  ],
+                },
+              },
+            }),
+          })
         } else {
           await route.continue()
         }
       })
 
       // Open cart
-      await page.locator('nav').getByRole('button', { name: /shopping/i }).click()
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
 
-      // Checkout button visible
-      await expect(page.getByRole('button', { name: /checkout/i })).toBeVisible()
+      await page.getByRole('button', { name: /checkout/i }).click()
+
+      await expect(page).toHaveURL(/\/order\/completed-order-123/)
     })
 
     test('should display order in orders list after checkout', async ({ page }) => {
@@ -271,6 +318,7 @@ test.describe('Checkout', () => {
                       {
                         id: 'order-item-1',
                         title: 'Test Product',
+                        description: 'Test product description',
                         price: 2500,
                         quantity: 1,
                         image: null,
@@ -303,14 +351,15 @@ test.describe('Checkout', () => {
       // Mock the checkout to succeed and clear cart
       await page.route('**/graphql', async (route) => {
         const postData = route.request().postData()
-        if (postData?.includes('checkout')) {
+        if (postData?.includes('createOrder')) {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
             body: JSON.stringify({
               data: {
-                checkout: {
+                createOrder: {
                   id: 'order-clear-test',
+                  charge: 'ch_clear',
                   total: 2500,
                   items: [],
                 },
@@ -342,6 +391,10 @@ test.describe('Checkout', () => {
       // Cart badge should show item count before checkout
       const cartBadge = page.locator('nav').getByText('1')
       await expect(cartBadge).toBeVisible()
+
+      await page.locator('nav').getByRole('button', { name: /my cart/i }).click()
+      await page.getByRole('button', { name: /checkout/i }).click()
+      await expect(page.locator('nav').getByText('1')).toBeHidden()
     })
   })
 })

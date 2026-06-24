@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Create item form component
  */
 import { useState } from 'react'
-import { useMutation } from '@apollo/client'
+import { useMutation } from "@apollo/client/react";
 import { useRouter } from 'next/navigation'
 import { CREATE_ITEM_MUTATION } from '@/lib/graphql/mutations'
 import { ALL_ITEMS_QUERY } from '@/lib/graphql/queries'
@@ -14,6 +13,13 @@ import { Label } from './ui/label'
 import { Card, CardContent } from './ui/card'
 import { Loader2 } from 'lucide-react'
 
+interface CreateItemData {
+  createItem: {
+    id: string
+    title: string
+  }
+}
+
 export function CreateItem() {
   const router = useRouter()
   const [title, setTitle] = useState('')
@@ -22,8 +28,9 @@ export function CreateItem() {
   const [image, setImage] = useState('')
   const [largeImage, setLargeImage] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
-  const [createItem, { loading, error }] = useMutation(CREATE_ITEM_MUTATION, {
+  const [createItem, { loading, error }] = useMutation<CreateItemData>(CREATE_ITEM_MUTATION, {
     refetchQueries: [{ query: ALL_ITEMS_QUERY }],
     onCompleted: (data) => {
       router.push(`/item/${data.createItem.id}`)
@@ -34,24 +41,46 @@ export function CreateItem() {
     const files = e.target.files
     if (!files?.length) return
 
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    if (!cloudName || !uploadPreset) {
+      setUploadError(
+        'Image upload is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.'
+      )
+      return
+    }
+
     setUploading(true)
+    setUploadError('')
     const data = new FormData()
     data.append('file', files[0])
-    data.append('upload_preset', 'sickfits')
+    data.append('upload_preset', uploadPreset)
 
     try {
       const res = await fetch(
-        'https://api.cloudinary.com/v1_1/wesbos/image/upload',
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
         {
           method: 'POST',
           body: data,
         }
       )
-      const file = await res.json()
+      if (!res.ok) {
+        throw new Error(`Cloudinary upload failed with HTTP ${res.status}`)
+      }
+      const file = (await res.json()) as {
+        secure_url?: string
+        eager?: Array<{ secure_url?: string }>
+      }
+      if (!file.secure_url) {
+        throw new Error('Cloudinary did not return a secure image URL.')
+      }
       setImage(file.secure_url)
       setLargeImage(file.eager?.[0]?.secure_url || file.secure_url)
     } catch (err) {
       console.error('Upload error:', err)
+      setUploadError(
+        err instanceof Error ? err.message : 'Image upload failed. Try again.'
+      )
     } finally {
       setUploading(false)
     }
@@ -79,6 +108,11 @@ export function CreateItem() {
               {error.message}
             </div>
           )}
+          {uploadError && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {uploadError}
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="image">Image</Label>
             <Input
@@ -96,7 +130,7 @@ export function CreateItem() {
             )}
             {image && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt="Upload preview" className="h-32 rounded-md" />
+              (<img src={image} alt="Upload preview" className="h-32 rounded-md" />)
             )}
           </div>
           <div className="space-y-2">
@@ -140,5 +174,5 @@ export function CreateItem() {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

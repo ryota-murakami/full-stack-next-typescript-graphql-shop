@@ -34,7 +34,7 @@ test.describe('Items', () => {
         const itemTitle = await firstItem.locator('h2').textContent()
         await firstItem.click()
 
-        await expect(page.url()).toContain('/item/')
+        await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
         if (itemTitle) {
           await expect(page.getByRole('heading', { name: itemTitle })).toBeVisible()
         }
@@ -60,7 +60,7 @@ test.describe('Items', () => {
 
       const title = `Test Item ${Date.now()}`
       const description = 'This is a test item description'
-      const price = '1999' // $19.99
+      const price = '19.99' // $19.99 (component converts to cents)
 
       await page.getByLabel(/title/i).fill(title)
       await page.getByLabel(/description/i).fill(description)
@@ -69,7 +69,7 @@ test.describe('Items', () => {
       await page.getByRole('button', { name: /create/i }).click()
 
       // Should redirect to item page
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
       await expect(page.getByRole('heading', { name: title })).toBeVisible()
     })
   })
@@ -84,30 +84,32 @@ test.describe('Items', () => {
       const originalTitle = `Update Test ${Date.now()}`
       await page.getByLabel(/title/i).fill(originalTitle)
       await page.getByLabel(/description/i).fill('Original description')
-      await page.getByLabel(/price/i).fill('999')
+      await page.getByLabel(/price/i).fill('9.99') // $9.99 (component converts to cents)
       await page.getByRole('button', { name: /create/i }).click()
 
       // Should be on item detail page
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Go to items page and find the edit button
       await page.goto('/items')
+      // Wait for the specific item to appear
+      await page.waitForSelector(`text=${originalTitle}`, { timeout: 10000 })
 
       // Find the item card and click edit
-      const itemCard = page.locator(`text=${originalTitle}`).locator('..').locator('..')
-      await itemCard.getByRole('link', { name: /edit/i }).click()
+      const itemCard = page.locator(`text=${originalTitle}`).locator('..').locator('..').locator('..')
+      await itemCard.getByRole('link', { name: 'Edit', exact: true }).click()
 
       // Should be on update page
-      await expect(page.url()).toContain('/update/')
+      await expect(page).toHaveURL(/\/update\//, { timeout: 10000 })
 
       // Update the title
       const updatedTitle = `Updated ${originalTitle}`
       await page.getByLabel(/title/i).clear()
       await page.getByLabel(/title/i).fill(updatedTitle)
-      await page.getByRole('button', { name: /update/i }).click()
+      await page.getByRole('button', { name: /save changes/i }).click()
 
       // Should redirect to item page with updated title
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
       await expect(page.getByRole('heading', { name: updatedTitle })).toBeVisible()
     })
   })
@@ -122,21 +124,23 @@ test.describe('Items', () => {
       const title = `Delete Test ${Date.now()}`
       await page.getByLabel(/title/i).fill(title)
       await page.getByLabel(/description/i).fill('To be deleted')
-      await page.getByLabel(/price/i).fill('500')
+      await page.getByLabel(/price/i).fill('5') // $5.00 (component converts to cents)
       await page.getByRole('button', { name: /create/i }).click()
 
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Go to items page
       await page.goto('/items')
+      // Wait for the specific item to appear
+      await page.waitForSelector(`text=${title}`, { timeout: 10000 })
 
       // Find the item and delete it
-      const itemCard = page.locator(`text=${title}`).locator('..').locator('..')
+      const itemCard = page.locator(`text=${title}`).locator('..').locator('..').locator('..')
 
       // Handle the confirmation dialog
       page.on('dialog', (dialog) => dialog.accept())
 
-      await itemCard.getByRole('button', { name: /delete/i }).click()
+      await itemCard.getByRole('button', { name: /delete item/i }).click()
 
       // Item should no longer be visible
       await expect(page.locator(`text=${title}`)).not.toBeVisible()
@@ -146,11 +150,6 @@ test.describe('Items', () => {
   test.describe('Items Pagination', () => {
     test('should display pagination when many items exist', async ({ page }) => {
       await page.goto('/items')
-
-      // Check if pagination exists (if there are enough items)
-      const pagination = page.locator('[aria-label="pagination"]').or(
-        page.getByRole('navigation', { name: /pagination/i })
-      )
 
       // Pagination may or may not be visible depending on item count
       // This test verifies the page loads correctly with or without pagination
@@ -179,10 +178,23 @@ test.describe('Items', () => {
 
   test.describe('Empty States', () => {
     test('should handle items page with no items gracefully', async ({ page }) => {
-      // Mock empty items response
+      // Mock empty items response - must include pagination data
       await page.route('**/graphql', async (route) => {
         const postData = route.request().postData()
-        if (postData?.includes('allItems') || postData?.includes('items')) {
+        if (postData?.includes('itemsConnection')) {
+          // Pagination query needs aggregate count
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              data: {
+                itemsConnection: {
+                  aggregate: { count: 0 },
+                },
+              },
+            }),
+          })
+        } else if (postData?.includes('allItems') || postData?.includes('items')) {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -213,10 +225,10 @@ test.describe('Items', () => {
       const title = `Price Format ${Date.now()}`
       await page.getByLabel(/title/i).fill(title)
       await page.getByLabel(/description/i).fill('Test price formatting')
-      await page.getByLabel(/price/i).fill('2599') // $25.99
+      await page.getByLabel(/price/i).fill('25.99') // $25.99 (component converts to cents)
       await page.getByRole('button', { name: /create/i }).click()
 
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Check price is displayed correctly on item page
       await expect(page.getByText('$25.99').or(page.getByText('$25'))).toBeVisible()
@@ -233,11 +245,11 @@ test.describe('Items', () => {
       await page.getByLabel(/price/i).fill('0')
       await page.getByRole('button', { name: /create/i }).click()
 
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
-      // Price should show as $0 or $0.00
+      // Price should show as $0 or $0.00 (use first() to handle multiple matches)
       await expect(
-        page.getByText('$0').or(page.getByText('$0.00')).or(page.getByText('Free'))
+        page.getByText('$0').or(page.getByText('$0.00')).or(page.getByText('Free')).first()
       ).toBeVisible()
     })
   })
@@ -251,11 +263,11 @@ test.describe('Items', () => {
       const title = `No Image Item ${Date.now()}`
       await page.getByLabel(/title/i).fill(title)
       await page.getByLabel(/description/i).fill('Item without image')
-      await page.getByLabel(/price/i).fill('1500')
+      await page.getByLabel(/price/i).fill('15') // $15.00 (component converts to cents)
       // Don't upload an image
       await page.getByRole('button', { name: /create/i }).click()
 
-      await expect(page.url()).toContain('/item/')
+      await expect(page).toHaveURL(/\/item\//, { timeout: 10000 })
 
       // Item page should still display correctly
       await expect(page.getByRole('heading', { name: title })).toBeVisible()
@@ -270,7 +282,7 @@ test.describe('Items', () => {
 
       // Only fill description and price
       await page.getByLabel(/description/i).fill('Description only')
-      await page.getByLabel(/price/i).fill('1000')
+      await page.getByLabel(/price/i).fill('10') // $10.00 (component converts to cents)
 
       // Try to submit without title
       await page.getByRole('button', { name: /create/i }).click()

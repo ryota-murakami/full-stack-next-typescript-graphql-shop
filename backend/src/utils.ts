@@ -2,17 +2,22 @@
  * Utility functions for the backend
  */
 import type { Permission, User } from '@prisma/client'
+import { userFacingError } from './errors.js'
 
 /**
- * Check if user has required permissions
- * @throws Error if user lacks permissions
+ * Ensures a signed-in user has at least one required permission before admin resolvers run.
+ * @param user - The current user loaded from the auth cookie.
+ * @param permissionsNeeded - The accepted permissions for this operation.
+ * @returns Nothing when access is allowed; throws a safe GraphQL error otherwise.
+ * @example
+ * hasPermission(user, ['ADMIN'])
  */
 export function hasPermission(
   user: Pick<User, 'permissions'> | null | undefined,
   permissionsNeeded: Permission[]
 ): void {
   if (!user) {
-    throw new Error('You must be logged in!')
+    throw userFacingError('You must be logged in!', 'UNAUTHENTICATED')
   }
 
   const matchedPermissions = user.permissions.filter((permission) =>
@@ -20,10 +25,10 @@ export function hasPermission(
   )
 
   if (matchedPermissions.length === 0) {
-    throw new Error(`You do not have sufficient permissions.
+    throw userFacingError(`You do not have sufficient permissions.
       Required: ${permissionsNeeded.join(', ')}
       You have: ${user.permissions.join(', ')}
-    `)
+    `, 'FORBIDDEN')
   }
 }
 

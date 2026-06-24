@@ -1,10 +1,11 @@
-'use client'
-
+'use client';
 /**
  * Single Order Detail Component
  * Displays order information including items, totals, and timestamps.
  */
-import { useQuery } from '@apollo/client'
+
+
+import { useQuery } from "@apollo/client/react";
 import { SINGLE_ORDER_QUERY } from '@/lib/graphql/queries'
 import type { SingleOrderData } from '@/lib/graphql/types'
 import { formatMoney } from '@/lib/utils'

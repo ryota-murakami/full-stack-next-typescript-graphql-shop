@@ -1,12 +1,11 @@
-'use client'
-
+'use client';
 /**
  * Search Component
  * Provides real-time search with debounced queries and dropdown results.
- * Uses useLazyQuery for on-demand fetching with 350ms debounce.
+ * Uses useLazyQuery for on-demand fetching with a short debounce.
  */
-import { useState, useCallback } from 'react'
-import { useLazyQuery } from '@apollo/client'
+import { useState, useEffect, useMemo } from 'react'
+import { useLazyQuery } from "@apollo/client/react";
 import { useRouter } from 'next/navigation'
 import debounce from 'lodash.debounce'
 import { SEARCH_ITEMS_QUERY } from '@/lib/graphql/queries'
@@ -14,6 +13,9 @@ import type { SearchItemsData } from '@/lib/graphql/types'
 import { Input } from './ui/input'
 import { Search as SearchIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+const SEARCH_DEBOUNCE_MS = 350
+const SEARCH_BLUR_CLOSE_MS = 200
 
 export function Search() {
   const router = useRouter()
@@ -27,19 +29,19 @@ export function Search() {
     }
   )
 
-  /**
-   * Debounced search function
-   * Waits 350ms after user stops typing before executing query.
-   */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      if (term.length >= 2) {
-        searchItems({ variables: { searchTerm: term } })
-      }
-    }, 350),
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((term: string) => {
+        if (term.length >= 2) {
+          searchItems({ variables: { searchTerm: term } })
+        }
+      }, SEARCH_DEBOUNCE_MS),
     [searchItems]
   )
+
+  useEffect(() => {
+    return () => debouncedSearch.cancel()
+  }, [debouncedSearch])
 
   /**
    * Handle input change with debounced search
@@ -74,14 +76,13 @@ export function Search() {
           value={searchTerm}
           onChange={handleChange}
           onFocus={() => searchTerm.length >= 2 && setIsOpen(true)}
-          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+          onBlur={() => setTimeout(() => setIsOpen(false), SEARCH_BLUR_CLOSE_MS)}
           className="w-64 pl-9"
         />
         {loading && (
           <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
-
       {isOpen && searchTerm.length >= 2 && (
         <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
           {items.length === 0 && !loading && (
@@ -104,11 +105,11 @@ export function Search() {
                   >
                     {item.image && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      (<img
                         src={item.image}
                         alt=""
                         className="h-8 w-8 rounded object-cover"
-                      />
+                      />)
                     )}
                     <span className="flex-1 truncate">{item.title}</span>
                   </button>
@@ -119,5 +120,5 @@ export function Search() {
         </div>
       )}
     </div>
-  )
+  );
 }

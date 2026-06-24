@@ -4,8 +4,10 @@
  */
 import Stripe from 'stripe';
 /**
- * Get the Stripe instance (lazy initialization)
- * @throws Error if STRIPE_SECRET is not configured
+ * Gets Stripe when checkout runs so local startup works without payment keys.
+ * @returns Stripe client configured with STRIPE_SECRET.
+ * @example
+ * const charge = await getStripe().charges.create({ amount, currency: 'USD', source: 'tok_visa' })
  */
 export declare function getStripe(): Stripe;
 declare const _default: {

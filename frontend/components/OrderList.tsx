@@ -1,10 +1,9 @@
-'use client'
-
+'use client';
 /**
  * Order list component
  */
 import Link from 'next/link'
-import { useQuery } from '@apollo/client'
+import { useQuery } from "@apollo/client/react";
 import { USER_ORDERS_QUERY } from '@/lib/graphql/queries'
 import type { UserOrdersData } from '@/lib/graphql/types'
 import { formatMoney } from '@/lib/utils'
@@ -63,11 +62,11 @@ export function OrderList() {
                   >
                     {item.image && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      (<img
                         src={item.image}
                         alt={item.title}
                         className="h-full w-full object-cover"
-                      />
+                      />)
                     )}
                   </div>
                 ))}
@@ -85,5 +84,5 @@ export function OrderList() {
         </Link>
       ))}
     </div>
-  )
+  );
 }

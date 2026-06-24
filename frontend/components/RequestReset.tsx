@@ -1,20 +1,25 @@
-'use client'
-
+'use client';
 /**
  * Request password reset form component
  */
 import { useState } from 'react'
-import { useMutation } from '@apollo/client'
+import { useMutation } from "@apollo/client/react";
 import { REQUEST_RESET_MUTATION } from '@/lib/graphql/mutations'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 
+interface RequestResetData {
+  requestReset: {
+    message: string
+  } | null
+}
+
 export function RequestReset() {
   const [email, setEmail] = useState('')
 
-  const [requestReset, { loading, error, data }] = useMutation(
+  const [requestReset, { loading, error, data }] = useMutation<RequestResetData>(
     REQUEST_RESET_MUTATION,
     {
       variables: { email },

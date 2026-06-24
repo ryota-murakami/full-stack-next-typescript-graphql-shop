@@ -4,6 +4,7 @@
  */
 import type { GraphQLContext, ItemWhereInput, ItemOrderByInput } from '../types.js'
 import { hasPermission } from '../utils.js'
+import { userFacingError } from '../errors.js'
 import type { Prisma } from '@prisma/client'
 
 /**
@@ -141,7 +142,7 @@ export const Query = {
    */
   async users(_parent: unknown, _args: unknown, ctx: GraphQLContext) {
     if (!ctx.request.userId) {
-      throw new Error('You must be logged in!')
+      throw userFacingError('You must be logged in!', 'UNAUTHENTICATED')
     }
 
     hasPermission(ctx.request.user, ['ADMIN', 'PERMISSIONUPDATE'])
@@ -162,7 +163,7 @@ export const Query = {
    */
   async order(_parent: unknown, args: { id: string }, ctx: GraphQLContext) {
     if (!ctx.request.userId) {
-      throw new Error('You must be logged in!')
+      throw userFacingError('You must be logged in!', 'UNAUTHENTICATED')
     }
 
     const order = await ctx.prisma.order.findUnique({
@@ -174,14 +175,14 @@ export const Query = {
     })
 
     if (!order) {
-      throw new Error('Order not found')
+      throw userFacingError('Order not found', 'NOT_FOUND')
     }
 
     const ownsOrder = order.userId === ctx.request.userId
     const isAdmin = ctx.request.user?.permissions.includes('ADMIN')
 
     if (!ownsOrder && !isAdmin) {
-      throw new Error('You cannot see this order')
+      throw userFacingError('You cannot see this order', 'FORBIDDEN')
     }
 
     return order
@@ -192,7 +193,7 @@ export const Query = {
    */
   async orders(_parent: unknown, _args: unknown, ctx: GraphQLContext) {
     if (!ctx.request.userId) {
-      throw new Error('You must be signed in!')
+      throw userFacingError('You must be signed in!', 'UNAUTHENTICATED')
     }
 
     return ctx.prisma.order.findMany({

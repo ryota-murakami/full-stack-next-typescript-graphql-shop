@@ -1,10 +1,11 @@
-'use client'
-
+'use client';
 /**
  * Apollo Provider for Next.js App Router
  * Wraps the application with ApolloProvider
  */
-import { ApolloProvider } from '@apollo/client'
+
+
+import { ApolloProvider } from "@apollo/client/react";
 import { makeClient } from './apollo-client'
 import { useMemo, type ReactNode } from 'react'
 
