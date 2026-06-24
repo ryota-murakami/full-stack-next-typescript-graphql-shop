@@ -1,38 +1,40 @@
 {
   "name": "full-stack-shop-backend",
-  "version": "1.0.0",
-  "description": "the backend of full-stack-shop",
-  "main": "src/index.js",
+  "version": "2.0.0",
+  "description": "GraphQL API server for Full-Stack Shop",
+  "type": "module",
   "scripts": {
-    "start": "NODE_ENV=production node src/index.js",
-    "dev": "NODE_ENV=development nodemon -e js,graphql -x node src/index.js",
-    "test": "jest",
-    "prisma:deploy:dev": "prisma deploy --env-file variables.dev.env",
-    "prettier": "prettier --write src/**/*"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && cp src/schema.graphql dist/schema.graphql",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push"
   },
   "dependencies": {
-    "babel-preset-env": "^1.7.0",
-    "bcryptjs": "2.4.3",
-    "cookie-parser": "^1.4.3",
-    "dotenv": "6.0.0",
-    "graphql": "^0.13.2",
-    "graphql-cli": "^2.16.7",
-    "graphql-yoga": "1.16.2",
-    "jsonwebtoken": "8.3.0",
-    "nodemailer": "^4.6.8",
-    "nodemon": "^1.18.7",
-    "npm-run-all": "^4.1.5",
-    "prisma": "1.17.1",
-    "prisma-binding": "2.1.6",
-    "stripe": "^6.12.1"
-  },
-  "license": "MIT",
-  "babel": {
-    "presets": [
-      "env"
-    ]
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "graphql": "^16.14.2",
+    "graphql-yoga": "^5.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^9.0.1",
+    "stripe": "^22.2.3"
   },
   "devDependencies": {
-    "prettier": "^1.19.1"
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.0.0",
+    "@types/nodemailer": "^8.0.1",
+    "prisma": "^7.8.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   }
 }

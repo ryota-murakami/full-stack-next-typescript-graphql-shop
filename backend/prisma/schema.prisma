@@ -1,0 +1,87 @@
+// Prisma Schema for Full-Stack Shop
+// Migrated from Prisma 1 datamodel.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Permission {
+  ADMIN
+  USER
+  ITEMCREATE
+  ITEMUPDATE
+  ITEMDELETE
+  PERMISSIONUPDATE
+}
+
+model User {
+  id               String       @id @default(cuid())
+  name             String
+  email            String       @unique
+  password         String
+  resetToken       String?
+  resetTokenExpiry Float?
+  permissions      Permission[] @default([USER])
+  cart             CartItem[]
+  orders           Order[]
+  items            Item[]
+  orderItems       OrderItem[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Item {
+  id          String     @id @default(cuid())
+  title       String
+  description String
+  image       String?
+  largeImage  String?
+  price       Int
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  cartItems   CartItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+  item      Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  itemId    String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  image       String
+  largeImage  String
+  price       Int
+  quantity    Int      @default(1)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId      String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  items     OrderItem[]
+  total     Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  charge    String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
